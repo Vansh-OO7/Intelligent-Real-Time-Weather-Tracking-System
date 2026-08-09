@@ -44,7 +44,7 @@ export default function LiveDemoSection() {
                   key={index}
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
+                  viewport={{ once: false, amount: 0.2 }}
                   transition={{ delay: index * 0.1 }}
                   className="bg-background/50 border border-border rounded-2xl p-6 flex flex-col items-center justify-center text-center hover:bg-secondary/30 transition-colors"
                 >

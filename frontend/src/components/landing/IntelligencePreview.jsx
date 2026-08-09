@@ -34,7 +34,7 @@ export default function IntelligencePreview() {
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
+              viewport={{ once: false, amount: 0.2 }}
             >
               <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tight">
                 Beyond Monitoring. <br />
@@ -45,7 +45,7 @@ export default function IntelligencePreview() {
               <p className="text-muted-foreground text-lg mb-8 leading-relaxed">
                 We are building the future of environmental analytics. Our platform goes beyond simply displaying data, using advanced algorithms to detect patterns, predict changes, and provide actionable intelligence.
               </p>
-              
+
               <div className="inline-flex items-center gap-2 bg-secondary/80 px-4 py-2 rounded-lg border border-border">
                 <Sparkles className="w-5 h-5 text-primary" />
                 <span className="font-medium text-sm">Machine Learning capabilities coming in v2.0</span>
@@ -59,7 +59,7 @@ export default function IntelligencePreview() {
                 key={index}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
+                viewport={{ once: false, amount: 0.2 }}
                 transition={{ delay: index * 0.1 }}
                 className="bg-card border border-border p-6 rounded-2xl flex items-start gap-4"
               >

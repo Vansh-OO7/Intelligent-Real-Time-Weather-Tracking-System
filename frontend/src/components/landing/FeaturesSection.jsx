@@ -61,7 +61,7 @@ export default function FeaturesSection() {
               key={index}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
+              viewport={{ once: false, amount: 0.2 }}
               transition={{ delay: index * 0.1 }}
               className="group p-8 rounded-3xl bg-card border border-border hover:border-primary/50 transition-all hover:shadow-[0_0_30px_rgba(var(--primary),0.1)] cursor-default"
             >

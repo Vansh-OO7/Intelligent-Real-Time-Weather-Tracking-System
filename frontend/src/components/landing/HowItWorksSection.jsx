@@ -31,7 +31,7 @@ export default function HowItWorksSection() {
                 key={index}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
+                viewport={{ once: false, amount: 0.2 }}
                 transition={{ delay: index * 0.1 }}
                 className="flex flex-col items-center text-center relative group"
               >
@@ -40,7 +40,7 @@ export default function HowItWorksSection() {
                 </div>
                 <h4 className="font-bold mb-2">{step.title}</h4>
                 <p className="text-sm text-muted-foreground">{step.desc}</p>
-                
+
                 {/* Arrow for mobile */}
                 {index < steps.length - 1 && (
                   <div className="md:hidden w-px h-8 bg-border my-4" />
