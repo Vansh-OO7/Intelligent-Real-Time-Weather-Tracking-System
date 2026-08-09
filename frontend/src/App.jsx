@@ -26,7 +26,17 @@ function App() {
           <Route path="/register" element={<RegisterPage />} />
         </Route>
 
-        {/* App Routes */}
+        {/* App Routes – /dashboard (primary) */}
+        <Route path="/dashboard" element={<DashboardLayout />}>
+          <Route index element={<DashboardPage />} />
+          <Route path="analytics" element={<AnalyticsPage />} />
+          <Route path="ml" element={<MLPage />} />
+          <Route path="forecast" element={<ForecastPage />} />
+          <Route path="alerts" element={<AlertsPage />} />
+          <Route path="reports" element={<ReportsPage />} />
+        </Route>
+
+        {/* App Routes – /app (legacy, preserved) */}
         <Route path="/app" element={<DashboardLayout />}>
           <Route index element={<DashboardPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
