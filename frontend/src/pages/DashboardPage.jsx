@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { useOutletContext } from "react-router-dom";
+import { socket } from "../lib/socket";
 import { motion } from "framer-motion";
 import {
   Thermometer,
@@ -15,6 +17,7 @@ import {
   RefreshCw,
   TrendingUp,
   Activity,
+  AlertCircle
 } from "lucide-react";
 import {
   AreaChart,
@@ -26,23 +29,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { getLatestSensorData } from "../api/sensorApi";
-
-// ─── Mock historical data for chart ───────────────────────────────────────────
-const mockChartData = [
-  { time: "00:00", temp: 24.2, humidity: 68 },
-  { time: "02:00", temp: 23.1, humidity: 70 },
-  { time: "04:00", temp: 22.5, humidity: 72 },
-  { time: "06:00", temp: 23.8, humidity: 71 },
-  { time: "08:00", temp: 25.6, humidity: 69 },
-  { time: "10:00", temp: 27.3, humidity: 67 },
-  { time: "12:00", temp: 29.1, humidity: 65 },
-  { time: "14:00", temp: 29.6, humidity: 71 },
-  { time: "16:00", temp: 28.9, humidity: 73 },
-  { time: "18:00", temp: 27.4, humidity: 74 },
-  { time: "20:00", temp: 26.1, humidity: 72 },
-  { time: "22:00", temp: 25.3, humidity: 70 },
-];
+import { getSensorDataByNode } from "../api/sensorApi";
 
 // ─── Sensor card data mapping helper ─────────────────────────────────────────
 const getDynamicCards = (sensorData) => [
@@ -234,34 +221,82 @@ function SensorCard({ card }) {
 
 // ─── Main Dashboard Page ───────────────────────────────────────────────────────
 export default function DashboardPage() {
+  const { selectedNode } = useOutletContext() || { selectedNode: "NODE01" };
   const [sensorData, setSensorData] = useState(null);
+  const [chartData, setChartData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchLatest = async () => {
+    const fetchNodeData = async () => {
+      setLoading(true);
+      setError(null);
+      setSensorData(null);
+      setChartData([]);
       try {
-        const response = await getLatestSensorData();
-        if (response.success) {
-          setSensorData(response.data);
+        const response = await getSensorDataByNode(selectedNode);
+        if (response.success && response.data && response.data.length > 0) {
+          // The API returns history newest-first. Latest is data[0].
+          const latest = response.data[0];
+          setSensorData(latest);
+          
+          // Reverse for charts so time flows left-to-right (oldest -> newest)
+          const historical = [...response.data].reverse().map(record => ({
+            time: new Date(record.timestamp).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
+            temp: record.temperature,
+            humidity: record.humidity
+          }));
+          setChartData(historical);
         } else {
-          setError("Failed to fetch latest sensor data");
+          // Data array is empty
+          setError(`No sensor data available for ${selectedNode}`);
         }
       } catch (err) {
-        setError(err.message);
+        // Axios error response check
+        if (err.response && err.response.status === 404) {
+          setError(`No sensor data available for ${selectedNode}`);
+        } else {
+          setError(err.message || "Failed to fetch node data");
+        }
       } finally {
         setLoading(false);
       }
     };
-    fetchLatest();
-  }, []);
+
+    if (selectedNode) {
+      fetchNodeData();
+    }
+  }, [selectedNode]);
+
+  // Real-time Socket.IO updates
+  useEffect(() => {
+    const handleSensorData = (newData) => {
+      if (newData && newData.nodeId === selectedNode) {
+        setSensorData(newData);
+        setChartData((prev) => {
+          const newPoint = {
+            time: new Date(newData.timestamp).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
+            temp: newData.temperature,
+            humidity: newData.humidity
+          };
+          return [...prev, newPoint];
+        });
+      }
+    };
+
+    socket.on("sensorData", handleSensorData);
+
+    return () => {
+      socket.off("sensorData", handleSensorData);
+    };
+  }, [selectedNode]);
 
   const lastUpdated = sensorData?.timestamp
     ? new Date(sensorData.timestamp).toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      })
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    })
     : "—";
 
   const cards = getDynamicCards(sensorData);
@@ -290,12 +325,14 @@ export default function DashboardPage() {
           {/* Node Badge */}
           <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08]">
             <div className="relative">
-              <div className="absolute inset-0 w-2 h-2 rounded-full bg-emerald-500 animate-ping opacity-40" />
-              <div className="w-2 h-2 rounded-full bg-emerald-500" />
+              <div className={`absolute inset-0 w-2 h-2 rounded-full animate-ping opacity-40 ${sensorData ? "bg-emerald-500" : "bg-red-500"}`} />
+              <div className={`w-2 h-2 rounded-full ${sensorData ? "bg-emerald-500" : "bg-red-500"}`} />
             </div>
             <div>
-              <div className="text-white font-semibold text-sm leading-none">{sensorData?.nodeId ?? "—"}</div>
-              <div className="text-emerald-400 text-[10px] font-medium mt-0.5">{sensorData ? "Online" : "Connecting..."}</div>
+              <div className="text-white font-semibold text-sm leading-none">{selectedNode || "—"}</div>
+              <div className={`${sensorData ? "text-emerald-400" : "text-red-400"} text-[10px] font-medium mt-0.5`}>
+                {loading ? "Connecting..." : sensorData ? "Online" : "Offline"}
+              </div>
             </div>
           </div>
 
@@ -307,154 +344,166 @@ export default function DashboardPage() {
         </div>
       </motion.div>
 
-      {/* ── Sensor Cards Grid ─────────────────────────────────────────── */}
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4"
-      >
-        {cards.map((card) => (
-          <SensorCard key={card.id} card={card} />
-        ))}
-      </motion.div>
+      {error ? (
+        <motion.div 
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          className="flex flex-col items-center justify-center p-12 border border-white/[0.08] bg-white/[0.02] rounded-2xl"
+        >
+          <AlertCircle className="w-12 h-12 text-white/20 mb-4" />
+          <h3 className="text-white font-medium text-lg">{error}</h3>
+          <p className="text-white/40 mt-1">Select another node from the search bar to view data.</p>
+        </motion.div>
+      ) : (
+        <>
+          {/* ── Sensor Cards Grid ─────────────────────────────────────────── */}
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4"
+          >
+            {cards.map((card) => (
+              <SensorCard key={card.id} card={card} />
+            ))}
+          </motion.div>
 
-      {/* ── Chart Area ───────────────────────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4, duration: 0.5 }}
-        className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6"
-      >
-        <div className="flex items-start justify-between mb-6">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <Activity className="w-4.5 h-4.5 text-emerald-400" />
-              <h3 className="text-white font-semibold text-base">Historical Trend</h3>
-            </div>
-            <p className="text-white/35 text-xs">Temperature & Humidity — Last 24 Hours · NODE01</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button className="px-3 py-1 rounded-lg text-xs font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">24h</button>
-            <button className="px-3 py-1 rounded-lg text-xs font-medium text-white/35 hover:text-white/60 hover:bg-white/[0.05] border border-transparent transition-colors">7d</button>
-            <button className="px-3 py-1 rounded-lg text-xs font-medium text-white/35 hover:text-white/60 hover:bg-white/[0.05] border border-transparent transition-colors">30d</button>
-          </div>
-        </div>
-
-        <ResponsiveContainer width="100%" height={260}>
-          <AreaChart data={mockChartData} margin={{ top: 5, right: 5, left: -15, bottom: 0 }}>
-            <defs>
-              <linearGradient id="tempGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-              </linearGradient>
-              <linearGradient id="humidGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.25} />
-                <stop offset="95%" stopColor="#38bdf8" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-            <XAxis
-              dataKey="time"
-              tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 11 }}
-              axisLine={false}
-              tickLine={false}
-              dy={6}
-            />
-            <YAxis
-              tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 11 }}
-              axisLine={false}
-              tickLine={false}
-              dx={-4}
-            />
-            <Tooltip content={<CustomTooltip />} />
-            <Legend
-              wrapperStyle={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", paddingTop: "12px" }}
-              formatter={(val) => val === "temp" ? "Temperature (°C)" : "Humidity (%)"}
-            />
-            <Area
-              type="monotone"
-              dataKey="temp"
-              stroke="#10b981"
-              strokeWidth={2}
-              fill="url(#tempGrad)"
-              dot={false}
-              activeDot={{ r: 4, fill: "#10b981", stroke: "#0d1512", strokeWidth: 2 }}
-            />
-            <Area
-              type="monotone"
-              dataKey="humidity"
-              stroke="#38bdf8"
-              strokeWidth={2}
-              fill="url(#humidGrad)"
-              dot={false}
-              activeDot={{ r: 4, fill: "#38bdf8", stroke: "#0d1512", strokeWidth: 2 }}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
-      </motion.div>
-
-      {/* ── Node Information Panel ────────────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.55, duration: 0.5 }}
-        className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6"
-      >
-        <div className="flex items-center gap-2 mb-5">
-          <Cpu className="w-4.5 h-4.5 text-white/50" />
-          <h3 className="text-white font-semibold text-base">Node Information</h3>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {[
-            {
-              icon: Cpu,
-              label: "Microcontroller",
-              value: "ESP32",
-              sub: "Dual-core 240MHz",
-              color: "text-violet-400",
-              bg: "bg-violet-500/10",
-            },
-            {
-              icon: Radio,
-              label: "Radio Module",
-              value: "LoRa SX1276",
-              sub: "868 / 915 MHz",
-              color: "text-amber-400",
-              bg: "bg-amber-500/10",
-            },
-            {
-              icon: Timer,
-              label: "Sampling Interval",
-              value: "60 s",
-              sub: "Continuous mode",
-              color: "text-sky-400",
-              bg: "bg-sky-500/10",
-            },
-            {
-              icon: Wifi,
-              label: "Connection Status",
-              value: "Online",
-              sub: "Signal: −87 dBm",
-              color: "text-emerald-400",
-              bg: "bg-emerald-500/10",
-            },
-          ].map(({ icon: Icon, label, value, sub, color, bg }) => (
-            <div key={label} className="flex items-start gap-3 p-4 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-white/[0.1] transition-colors group">
-              <div className={`p-2 rounded-lg ${bg} flex-shrink-0`}>
-                <Icon className={`w-4 h-4 ${color}`} />
+          {/* ── Chart Area ───────────────────────────────────────────────── */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4, duration: 0.5 }}
+            className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6"
+          >
+            <div className="flex items-start justify-between mb-6">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Activity className="w-4.5 h-4.5 text-emerald-400" />
+                  <h3 className="text-white font-semibold text-base">Historical Trend</h3>
+                </div>
+                <p className="text-white/35 text-xs">Temperature & Humidity — Last 24 Hours · {selectedNode}</p>
               </div>
-              <div className="min-w-0">
-                <div className="text-white/40 text-[10px] font-medium uppercase tracking-wide mb-1 truncate">{label}</div>
-                <div className="text-white font-semibold text-sm">{value}</div>
-                <div className="text-white/30 text-[11px] mt-0.5">{sub}</div>
+              <div className="flex items-center gap-2">
+                <button className="px-3 py-1 rounded-lg text-xs font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">24h</button>
+                <button className="px-3 py-1 rounded-lg text-xs font-medium text-white/35 hover:text-white/60 hover:bg-white/[0.05] border border-transparent transition-colors">7d</button>
+                <button className="px-3 py-1 rounded-lg text-xs font-medium text-white/35 hover:text-white/60 hover:bg-white/[0.05] border border-transparent transition-colors">30d</button>
               </div>
             </div>
-          ))}
-        </div>
-      </motion.div>
 
+            <ResponsiveContainer width="100%" height={260}>
+              <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -15, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="tempGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="humidGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#38bdf8" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <XAxis
+                  dataKey="time"
+                  tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                  dy={6}
+                />
+                <YAxis
+                  tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                  dx={-4}
+                />
+                <Tooltip content={<CustomTooltip />} />
+                <Legend
+                  wrapperStyle={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", paddingTop: "12px" }}
+                  formatter={(val) => val === "temp" ? "Temperature (°C)" : "Humidity (%)"}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="temp"
+                  stroke="#10b981"
+                  strokeWidth={2}
+                  fill="url(#tempGrad)"
+                  dot={false}
+                  activeDot={{ r: 4, fill: "#10b981", stroke: "#0d1512", strokeWidth: 2 }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="humidity"
+                  stroke="#38bdf8"
+                  strokeWidth={2}
+                  fill="url(#humidGrad)"
+                  dot={false}
+                  activeDot={{ r: 4, fill: "#38bdf8", stroke: "#0d1512", strokeWidth: 2 }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </motion.div>
+
+          {/* ── Node Information Panel ────────────────────────────────────── */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.55, duration: 0.5 }}
+            className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6"
+          >
+            <div className="flex items-center gap-2 mb-5">
+              <Cpu className="w-4.5 h-4.5 text-white/50" />
+              <h3 className="text-white font-semibold text-base">Node Information</h3>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {[
+                {
+                  icon: Cpu,
+                  label: "Microcontroller",
+                  value: "ESP32",
+                  sub: "Dual-core 240MHz",
+                  color: "text-violet-400",
+                  bg: "bg-violet-500/10",
+                },
+                {
+                  icon: Radio,
+                  label: "Radio Module",
+                  value: "LoRa SX1276",
+                  sub: "868 / 915 MHz",
+                  color: "text-amber-400",
+                  bg: "bg-amber-500/10",
+                },
+                {
+                  icon: Timer,
+                  label: "Sampling Interval",
+                  value: "60 s",
+                  sub: "Continuous mode",
+                  color: "text-sky-400",
+                  bg: "bg-sky-500/10",
+                },
+                {
+                  icon: Wifi,
+                  label: "Connection Status",
+                  value: "Online",
+                  sub: "Signal: −87 dBm",
+                  color: "text-emerald-400",
+                  bg: "bg-emerald-500/10",
+                },
+              ].map(({ icon: Icon, label, value, sub, color, bg }) => (
+                <div key={label} className="flex items-start gap-3 p-4 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-white/[0.1] transition-colors group">
+                  <div className={`p-2 rounded-lg ${bg} flex-shrink-0`}>
+                    <Icon className={`w-4 h-4 ${color}`} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-white/40 text-[10px] font-medium uppercase tracking-wide mb-1 truncate">{label}</div>
+                    <div className="text-white font-semibold text-sm">{value}</div>
+                    <div className="text-white/30 text-[11px] mt-0.5">{sub}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        </>
+      )}
     </div>
   );
 }

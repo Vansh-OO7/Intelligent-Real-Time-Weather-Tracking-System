@@ -2,9 +2,8 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Search, Wifi, WifiOff, Bell, ChevronDown, User } from "lucide-react";
 
-export default function Topbar({ title = "Dashboard" }) {
+export default function Topbar({ title = "Dashboard", selectedNode, onNodeSelect, isConnected = false }) {
   const [searchValue, setSearchValue] = useState("");
-  const [connected] = useState(true);
 
   return (
     <header className="sticky top-0 z-30 h-16 flex items-center gap-4 px-6 bg-[#111918]/80 backdrop-blur-xl border-b border-white/[0.06] flex-shrink-0">
@@ -25,7 +24,7 @@ export default function Topbar({ title = "Dashboard" }) {
             type="text"
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
-            placeholder="Search nodes... (e.g. NODE01)"
+            placeholder={`Search nodes... (Current: ${selectedNode || "NODE01"})`}
             className="w-full pl-9 pr-3 py-2 bg-white/[0.05] border border-white/[0.08] rounded-xl text-sm text-white/80 placeholder:text-white/25 focus:outline-none focus:ring-1 focus:ring-emerald-500/40 focus:border-emerald-500/30 transition-all"
           />
           {searchValue && (
@@ -33,7 +32,10 @@ export default function Topbar({ title = "Dashboard" }) {
               {["NODE01", "NODE02", "NODE03"].filter(n => n.toLowerCase().includes(searchValue.toLowerCase())).map((node) => (
                 <button
                   key={node}
-                  onClick={() => setSearchValue(node)}
+                  onClick={() => {
+                    if (onNodeSelect) onNodeSelect(node);
+                    setSearchValue("");
+                  }}
                   className="w-full px-4 py-2.5 text-left text-sm text-white/70 hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors flex items-center gap-2"
                 >
                   <div className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
@@ -52,13 +54,13 @@ export default function Topbar({ title = "Dashboard" }) {
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${connected
-            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-            : "border-red-500/30 bg-red-500/10 text-red-400"
+        className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${isConnected
+          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+          : "border-red-500/30 bg-red-500/10 text-red-400"
           }`}
       >
         <div className="relative flex items-center">
-          {connected ? (
+          {isConnected ? (
             <>
               <div className="absolute w-2 h-2 rounded-full bg-emerald-500 animate-ping opacity-50" />
               <div className="w-2 h-2 rounded-full bg-emerald-500" />
@@ -67,7 +69,7 @@ export default function Topbar({ title = "Dashboard" }) {
             <div className="w-2 h-2 rounded-full bg-red-500" />
           )}
         </div>
-        <span>{connected ? "Connected" : "Disconnected"}</span>
+        <span>{isConnected ? "Connected" : "Disconnected"}</span>
       </motion.div>
 
       {/* Notifications */}

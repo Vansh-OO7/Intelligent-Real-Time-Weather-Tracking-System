@@ -5,14 +5,14 @@ class PacketParser:
 
         values = packet.split(",")
 
-        if len(values) != 8:
+        if len(values) != 7:
             raise ValueError(
                 f"Invalid packet received: {packet}"
             )
 
         return {
 
-            "nodeId": values[0],
+            "nodeId": "NODE01",
 
             "temperature": float(values[1]),
 

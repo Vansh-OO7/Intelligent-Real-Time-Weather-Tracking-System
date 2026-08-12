@@ -5,9 +5,12 @@ import { Link } from "react-router-dom";
 
 // Image list - change these filenames when real images are placed in src/assets/hero/
 const heroImages = [
+  "/src/assets/hero/hero-3.5.png",
+  "/src/assets/hero/hero-4.png",
   "/src/assets/hero/hero-1.avif",
   "/src/assets/hero/hero-2.avif",
   "/src/assets/hero/hero-3.webp",
+
 ];
 
 export default function Hero() {

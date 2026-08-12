@@ -5,6 +5,11 @@ const receiveSensorData = async (req, res) => {
 
         const savedSensor = await sensorService.saveSensorData(req.body);
 
+        const io = req.app.get("io");
+        if (io) {
+            io.emit("sensorData", savedSensor);
+        }
+
         res.status(201).json({
             success: true,
             message: "Sensor data saved successfully",
