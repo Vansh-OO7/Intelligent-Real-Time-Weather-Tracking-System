@@ -1,6 +1,9 @@
-SERIAL_PORT = "COM3"     
-BAUD_RATE = 115200
+import os
 
-API_URL = "http://localhost:5000/api/v1/sensor-data"
+SERIAL_PORT = os.getenv("SERIAL_PORT", "COM3")
+BAUD_RATE = int(os.getenv("BAUD_RATE", "115200"))
 
-TIMEOUT = 5
+# Backend ingestion API endpoint (change via env var API_URL for production deployment)
+API_URL = os.getenv("API_URL", "http://localhost:5000/api/v1/sensor-data")
+
+TIMEOUT = int(os.getenv("TIMEOUT", "5"))

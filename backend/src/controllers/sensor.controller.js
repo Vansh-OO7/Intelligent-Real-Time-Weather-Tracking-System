@@ -2,6 +2,20 @@ const sensorService = require("../services/sensor.service");
 
 const receiveSensorData = async (req, res) => {
     try {
+        const { nodeId, temperature, humidity, pressure, gasResistance } = req.body || {};
+
+        if (
+            !nodeId ||
+            temperature === undefined ||
+            humidity === undefined ||
+            pressure === undefined ||
+            gasResistance === undefined
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Missing required sensor fields (nodeId, temperature, humidity, pressure, gasResistance)"
+            });
+        }
 
         const savedSensor = await sensorService.saveSensorData(req.body);
 
@@ -20,14 +34,19 @@ const receiveSensorData = async (req, res) => {
         });
 
     } catch (error) {
+        console.error("Error saving sensor data:", error.message || error);
 
-        console.error("Error saving sensor data:", error);
+        if (error.name === "ValidationError") {
+            return res.status(400).json({
+                success: false,
+                message: "Validation Error: " + error.message
+            });
+        }
 
         res.status(500).json({
             success: false,
             message: "Failed to save sensor data"
         });
-
     }
 };
 
@@ -45,7 +64,7 @@ const getLatestSensorData = async (req, res) => {
             data: latestSensor
         });
     } catch (error) {
-        console.error("Error getting latest sensor data:", error);
+        console.error("Error getting latest sensor data:", error.message || error);
         res.status(500).json({
             success: false,
             message: "Failed to get latest sensor data"
@@ -55,14 +74,15 @@ const getLatestSensorData = async (req, res) => {
 
 const getSensorHistory = async (req, res) => {
     try {
-        const history = await sensorService.getSensorHistory();
+        const limit = req.query.limit ? parseInt(req.query.limit, 10) : 100;
+        const history = await sensorService.getSensorHistory(limit);
         res.status(200).json({
             success: true,
             count: history.length,
             data: history
         });
     } catch (error) {
-        console.error("Error getting sensor history:", error);
+        console.error("Error getting sensor history:", error.message || error);
         res.status(500).json({
             success: false,
             message: "Failed to get sensor history"
@@ -73,7 +93,8 @@ const getSensorHistory = async (req, res) => {
 const getSensorDataByNode = async (req, res) => {
     try {
         const { nodeId } = req.params;
-        const data = await sensorService.getSensorDataByNode(nodeId);
+        const limit = req.query.limit ? parseInt(req.query.limit, 10) : 100;
+        const data = await sensorService.getSensorDataByNode(nodeId, limit);
 
         if (!data || data.length === 0) {
             return res.status(404).json({
@@ -89,7 +110,7 @@ const getSensorDataByNode = async (req, res) => {
             data
         });
     } catch (error) {
-        console.error("Error getting sensor data by node:", error);
+        console.error("Error getting sensor data by node:", error.message || error);
         res.status(500).json({
             success: false,
             message: "Failed to get sensor data by node"

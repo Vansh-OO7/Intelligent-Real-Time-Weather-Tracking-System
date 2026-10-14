@@ -42,4 +42,8 @@ const sensorSchema = new mongoose.Schema({
 
 });
 
+// Indexes for query performance and memory-safe sorting
+sensorSchema.index({ timestamp: -1 });
+sensorSchema.index({ nodeId: 1, timestamp: -1 });
+
 module.exports = mongoose.model("Sensor", sensorSchema);

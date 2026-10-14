@@ -12,12 +12,12 @@ const getLatestSensorData = async () => {
     return await sensorRepository.getLatestSensorData();
 };
 
-const getSensorHistory = async () => {
-    return await sensorRepository.getSensorHistory();
+const getSensorHistory = async (limit) => {
+    return await sensorRepository.getSensorHistory(limit);
 };
 
-const getSensorDataByNode = async (nodeId) => {
-    return await sensorRepository.getSensorDataByNode(nodeId);
+const getSensorDataByNode = async (nodeId, limit) => {
+    return await sensorRepository.getSensorDataByNode(nodeId, limit);
 };
 
 module.exports = {

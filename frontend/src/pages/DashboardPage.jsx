@@ -289,12 +289,13 @@ export default function DashboardPage() {
       // Keep existing latency measurement unchanged
       if (newData?.serverSentAt) {
         const latency = receivedAt - newData.serverSentAt;
-        latencies.current.push(latency);
+        if (latencies.current.length > 50) {
+          latencies.current.shift();
+        }
 
         console.log(
           `Socket.IO latency: ${latency} ms | Sample: ${latencies.current.length}`
         );
-        console.log("ALL LATENCIES:", latencies.current);
       }
 
       // Update sensor cards and graph for the selected node
