@@ -156,12 +156,19 @@ const CustomTooltip = ({ active, payload, label }) => {
 // ─── Animation variants ────────────────────────────────────────────────────────
 const containerVariants = {
   hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.07 } },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.08 },
+  },
 };
 
 const cardVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
+  hidden: { opacity: 0, y: 18 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.45, ease: "easeOut" },
+  },
 };
 
 // ─── Sensor Card Component ─────────────────────────────────────────────────────
@@ -291,6 +298,8 @@ export default function DashboardPage() {
       }
 
       // Update sensor cards and graph for the selected node
+      //also updated the graph to be real time
+
       if (newData && newData.nodeId === selectedNode) {
         setSensorData(newData);
 
