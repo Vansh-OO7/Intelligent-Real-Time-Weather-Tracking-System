@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useOutletContext } from "react-router-dom";
 import { socket } from "../lib/socket";
 import { motion } from "framer-motion";
@@ -223,6 +223,7 @@ function SensorCard({ card }) {
 export default function DashboardPage() {
   const { selectedNode } = useOutletContext() || { selectedNode: "NODE01" };
   const [sensorData, setSensorData] = useState(null);
+  const latencies = useRef([]);
   const [chartData, setChartData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -239,10 +240,13 @@ export default function DashboardPage() {
           // The API returns history newest-first. Latest is data[0].
           const latest = response.data[0];
           setSensorData(latest);
-          
+
           // Reverse for charts so time flows left-to-right (oldest -> newest)
           const historical = [...response.data].reverse().map(record => ({
-            time: new Date(record.timestamp).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
+            time: new Date(record.timestamp).toLocaleTimeString("en-US", {
+              hour: "2-digit",
+              minute: "2-digit"
+            }),
             temp: record.temperature,
             humidity: record.humidity
           }));
@@ -270,19 +274,53 @@ export default function DashboardPage() {
 
   // Real-time Socket.IO updates
   useEffect(() => {
+
+
     const handleSensorData = (newData) => {
+      const receivedAt = Date.now();
+
+      // Keep existing latency measurement unchanged
+      if (newData?.serverSentAt) {
+        const latency = receivedAt - newData.serverSentAt;
+        latencies.current.push(latency);
+
+        console.log(
+          `Socket.IO latency: ${latency} ms | Sample: ${latencies.current.length}`
+        );
+        console.log("ALL LATENCIES:", latencies.current);
+      }
+
+      // Update sensor cards and graph for the selected node
       if (newData && newData.nodeId === selectedNode) {
         setSensorData(newData);
+
         setChartData((prev) => {
+          const timestamp = new Date(
+            newData.timestamp || Date.now()
+          ).getTime();
+
+          // Prevent duplicate graph points
+          if (prev.some((point) => point.timestamp === timestamp)) {
+            return prev;
+          }
+
           const newPoint = {
-            time: new Date(newData.timestamp).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
+            timestamp,
+            time: new Date(timestamp).toLocaleTimeString("en-US", {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
             temp: newData.temperature,
-            humidity: newData.humidity
+            humidity: newData.humidity,
           };
-          return [...prev, newPoint];
+
+          return [...prev, newPoint]
+            .sort((a, b) => a.timestamp - b.timestamp)
+            .slice(-500);
         });
       }
     };
+
 
     socket.on("sensorData", handleSensorData);
 
@@ -345,7 +383,7 @@ export default function DashboardPage() {
       </motion.div>
 
       {error ? (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }}
           className="flex flex-col items-center justify-center p-12 border border-white/[0.08] bg-white/[0.02] rounded-2xl"
         >

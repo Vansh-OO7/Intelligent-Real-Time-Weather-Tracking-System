@@ -7,7 +7,10 @@ const receiveSensorData = async (req, res) => {
 
         const io = req.app.get("io");
         if (io) {
-            io.emit("sensorData", savedSensor);
+            io.emit("sensorData", {
+                ...savedSensor.toObject(),
+                serverSentAt: Date.now()
+            });
         }
 
         res.status(201).json({
@@ -71,14 +74,14 @@ const getSensorDataByNode = async (req, res) => {
     try {
         const { nodeId } = req.params;
         const data = await sensorService.getSensorDataByNode(nodeId);
-        
+
         if (!data || data.length === 0) {
             return res.status(404).json({
                 success: false,
                 message: "No sensor data found."
             });
         }
-        
+
         res.status(200).json({
             success: true,
             nodeId,
