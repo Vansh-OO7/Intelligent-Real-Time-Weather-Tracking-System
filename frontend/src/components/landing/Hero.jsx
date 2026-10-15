@@ -2,15 +2,18 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, Activity, Thermometer, Droplets, Radio } from "lucide-react";
 import { Link } from "react-router-dom";
-
+import heroImage1 from "../../assets/hero/hero-3.5.png";
+import heroImage2 from "../../assets/hero/hero-4.png";
+import heroImage3 from "../../assets/hero/hero-1.avif";
+import heroImage4 from "../../assets/hero/hero-2.avif";
+import heroImage5 from "../../assets/hero/hero-3.webp";
 // Image list - change these filenames when real images are placed in src/assets/hero/
 const heroImages = [
-  "/src/assets/hero/hero-3.5.png",
-  "/src/assets/hero/hero-4.png",
-  "/src/assets/hero/hero-1.avif",
-  "/src/assets/hero/hero-2.avif",
-  "/src/assets/hero/hero-3.webp",
-
+  heroImage1,
+  heroImage2,
+  heroImage3,
+  heroImage4,
+  heroImage5,
 ];
 
 export default function Hero() {
