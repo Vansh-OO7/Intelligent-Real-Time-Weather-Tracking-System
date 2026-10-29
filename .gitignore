@@ -1,14 +1,64 @@
+
+# ==============================
+# Node.js dependencies
+# ==============================
 **/node_modules/
+
+# Environment variables and secrets
 **/.env
-**/.env.local
+**/.env.*
+!**/.env.example
+!ml/.env.example
+
+# Build outputs
 **/dist/
 **/build/
+
+# Logs and test coverage
 *.log
 logs/
 coverage/
+
+# IDE and editor files
 .vscode/
 .idea/
+
+# Operating system files
 .DS_Store
 Thumbs.db
+desktop.ini
+
+# ==============================
+# Python virtual environments
+# ==============================
+**/.venv/
+**/venv/
+**/env/
+
+# Python cache and compiled files
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+
+# Python testing, linting and notebooks
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.coverage
+htmlcov/
+
+# ==============================
+# Machine Learning datasets
+# ==============================
+ml/data/
+
+# Trained models and generated artifacts
+ml/models/
+ml/artifacts/
+
+# ==============================
+# Jupyter runtime files
+# ==============================
+.ipython/
+jupyter_runtime_dir/
